@@ -1,0 +1,327 @@
+---
+title: "Generalized Linear Mixed Model, Poisson Analysis"
+output:
+  html_document:
+    df_print: paged
+---
+## Dandy Lions Vs Kiwi Flowers
+
+Danddy Lions compete with Kiwi Flowers for pollination. Their main pollinator is the bee. Scientists wanted to see if supplementing a bee's diet would nehance their preference for kiwi flowers.
+
+15 hives were assigned randomly 1 of the following three treatments:
+
+Control (NO Supplement)
+Protein Supplement
+Syrup Supplement
+
+At the entrance of each hive, pollen grains of each flower were left and were later counted for 4 days. 
+
+
+
+```{r dataframe, echo = TRUE}
+treatment = c(
+  replicate(20, "Syrup"), replicate(20, "Protein"), replicate(20, "Control")
+)
+
+hive = rep(c(1:15), each = 4)
+
+sampling = rep(1:4, len = 60)
+
+polen = c(
+  236,  167,  227,  225,  306,  308,  241,  304,  36,  10,  2,
+  19,  249,  208,  66,  43,  139,  145,  146,  110,  147,  140,
+  153,  38,  129,  43,  42,  39,  35,  89,  100,  27,  111,  87,
+  48,  25,  98,  76,  27,  59,  32,  50,  9,  31,  13,  1,  0,  6,
+  130,  122,  127,  125,  31,  51,  11,  29,  11,  2,  1,  7
+)
+
+kiwi = data.frame(treatment, hive, sampling, polen)
+```
+```{r echo = TRUE, warning = FALSE, message = FALSE}
+##Libraries Used
+
+library(ggplot2)
+library(ggpubr)
+library(psych)
+library(doBy)
+library(lme4)
+library(glmmTMB)
+library(emmeans)
+library(RVAideMemoire)
+```
+```{r Functions, echo = TRUE}
+#Functions Used
+#Used for describing any ggplot used
+descrPlot = function(df,x,y) {
+  p = ggplot(data = df, aes(x = x, y = y))
+}
+
+#Used for Checking patterns in the residues
+pearsonGraph = function(mdl) 
+{
+  y = resid(mdl, type = "pearson")
+  x = fitted(mdl)
+  p = ggplot(kiwi, aes(x , y)) +
+    geom_abline(slope = 0, intercept = 0, color = "red") +
+    geom_point() +
+    labs(x = "Ajusted Residues", y = "Pearson Residues")
+  
+  return(p)
+}
+
+#Used for checking residues per treatment
+responseGraph = function(mdl)
+{
+  y = resid(mdl, type = "pearson")
+  x = treatment
+  p = ggplot(kiwi, aes(x , y)) +
+    geom_boxplot(aes(colour = treatment)) +
+    labs(x = "treatment", y = "Pearson residue")
+  
+  return(p)
+}
+
+#Used for Checking residues per hive
+pearsonBox = function(mdl)
+  
+{
+  y = resid(mdl, type = "pearson")
+  x = hive
+  p = ggplot(kiwi, aes(x, y)) +
+    geom_boxplot(aes(colour = hive)) +
+    labs(x = "Hive", y ="Pearson Residues")
+  
+  return(p)
+}
+
+#Used for Validating the model. Plots Response variable against
+#what is expected to be seen by the proposed model
+validGraph = function(mdl)
+{
+  y = polen
+  x = fitted(mdl, type = "response")
+  p = ggplot(kiwi, aes(x, y)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0) +
+    labs(x = "Ajusted Residues", y = "Pollen Grains")
+}
+```
+
+Firstly I will do a primary description analysis:
+
+```{r descriptive, echo = TRUE}
+kiwi$hive = factor(kiwi$hive)
+
+##Descriptive analysis
+
+firstGraph = descrPlot(kiwi, treatment, polen) +
+  geom_boxplot() + geom_jitter(width = 0.1) +
+  labs(x = "Treatment", y = "Pollen grains")
+
+secondGraph = descrPlot(kiwi, sampling, polen) +
+  geom_point(aes(colour = hive)) + facet_grid(. ~ treatment) +
+  geom_line(aes(colour = hive)) + labs(x = "Sampling", y = "No. pollen grains")
+
+summaryBy(polen ~ treatment, data = kiwi, FUN=c(mean, var, length))
+
+ggarrange(firstGraph, secondGraph,
+          labels = c("Variance >> Mean"))
+
+```
+
+At a glance It can be seen that as the mean increases in value, the variance also increases in value and in turn the variance is also greater than the respected mean. 
+
+The spaghetti plot seems to indicate that when there isn't any supplement given, the number of polen grains left seems to depend of the hive activity. This can be observed due to the parallelism. On the other hand, the spaghetti plots for protein and syrup treatments seems to present a certain variation, some hives more than other. In these treatments the number of grains left seem to vary on something more than just on hive activity. 
+
+Let's analyze!
+
+I will present an initial model:
+
+$Y$$_{ij}$ $=$ $Poisson$($\lambda$$_{ij}$)
+
+$\eta$$_{i}$ $=$ $ln$($E(Y_{ij})$ $=$ $\beta$$_{0}$ $+$ $\beta$$_{1}$$*$$P$$_{ij}$ $+$ $\beta$$_{2}$$*$$A$$_{ij}$ $+$ $\alpha$$_{j}$
+
+$E(Y_{i|j})$ $=$ $\mu$$_{i}$ = $e$$^{\eta_{i}}$ = $e$$^{\beta_{0}+\beta_{1}P_{ij}+\beta_{2}A_{ij}+\alpha_{j}}$
+
+And this model assumes that the aleatory effects $\alpha$$_{j}$ $-$ NID(0, $\sigma$$^2$$_{hives}$)
+
+```{r echo = TRUE}
+model1 = glmer(polen ~  treatment + (1|hive),
+               data = kiwi, family = poisson)
+#Assumtpions
+m1g1 = pearsonGraph(model1)
+m1g2 = responseGraph(model1)
+m1g3 = pearsonBox(model1)
+m1g4 = validGraph(model1)
+```
+This model takes hive as an aleatory effect and models the data according to a Poisson distribution. To see if the assumptions are met we study the residues of the model.
+
+```{r echo = TRUE}
+ggarrange(m1g1, m1g2, m1g3, m1g4,
+          labels = c("A", "B", "C", "D"))
+```
+
+As can be seen in graph A, there is a typical Funnel effect. Something to be expected from Poisson distributed data. There seems to be overdispersion both for treatment and hive ordered data. When the Ajusted values are compared to the Response variable values it is clear that the model doesn't necessarily respond well. 
+
+Time to check the dispersion parameter.
+
+```{r echo = TRUE}
+#Dispersion Parameter
+"Degrees of freedom"
+n = nrow(kiwi)
+#Number of parameters estimated
+k = length(fixef(model1)) + 1
+#Dispersion formula
+dispersion = sum((resid(model1, type = "pearson"))^2)/(n - k)
+dispersion
+```
+
+Since there is over dispersion, but it is lower than 15, Alain Zuur suggests that analyzing the data would be best using Comway Maxwell Poisson distribution. But for the sake of showing how the negative binomial would look I will also analyze this option:
+
+```{r echo = TRUE}
+model2 = glmmTMB(polen ~ treatment + (1|hive), data = kiwi,
+                 family = "nbinom2")
+#Assumptions
+m2g1 = pearsonGraph(model2)
+m2g2 = responseGraph(model2)
+m2g3 = pearsonBox(model2)
+m2g4 = validGraph(model2)
+
+ggarrange(m2g1, m2g2, m2g3, m2g4,
+          labels = c("A", "B", "C", "D"))
+```
+
+At a glance the funnel effect at graph A has been solved, and the overdispersion can no longer be seen when graphing the residues according to treatment or hives (since the maximum value in Y is under twice the standard deviation (2 : -2)). Though the problem at graph D seems to persist. The fitted values don't ajust well to the observed values. 
+
+I will now try Comway Maxwell Poisson
+
+```{r echo = TRUE}
+
+#Conway Maxwell Poisson
+
+model3 = glmmTMB(polen ~ treatment + (1|hive), data = kiwi,
+                 family ="compois")
+
+#Assumptions
+m3g1 = pearsonGraph(model3)
+m3g2 = responseGraph(model3)
+m3g3 = pearsonBox(model3)
+m3g4 = validGraph(model3)
+
+ggarrange(m3g1, m3g2, m3g3, m3g4, 
+          labels = c("A", "B", "C", "D"))
+```
+
+The graph at D doesn't seem to have improved at all but maybe it can be improved further. I will try adding another aleatory effect under "Observation". It has been reported and proved that adding this type of aleatory effect (where each individual observation has its inherent effect) can improve the model. I will state this secondary correlation of the data as follows:
+
+```{r echo = TRUE}
+#Adding the observation as an aleatory effect
+
+#first I assign a unique identifier to each observation
+
+id = 1:60
+kiwi = cbind(id, kiwi[1:4])
+
+model4 = glmmTMB(polen ~ treatment + (1|hive) + (1|id), data = kiwi,
+                 family = poisson)
+#dispersion parameter
+#Since I have 2 aleatory effects the number of parameters estimated "extra" is 2. 
+#Assumptions
+m4g1 = pearsonGraph(model4)
+m4g2 = responseGraph(model4)
+m4g3 = pearsonBox(model4)
+m4g4 = validGraph(model4)
+
+ggarrange(m4g1, m4g2, m4g3, m4g4, 
+          labels = c("A", "B", "C", "D"))
+```
+
+From the looks of these graphs, especially graph D one would say that this is the perfect model. WRONG! It would seem that the model can explain perfectly each observed value (Always suspect perfect models), and what's more frightening is graph A. The pattern observed here is a clear indicator of a lack of Homoscedasticity. The cornerstone assumption in these models. If this is violated then any parameter estimated would lack any true value.
+
+```{r echo = TRUE}
+k = length(fixef(model4)) + 2
+dispersion = sum((resid(model4, type = "pearson"))^2)/ (n - k)
+dispersion
+```
+
+As can be seen from the dispersion parameter, the model suffers from underdispersion. This will severly affect the Estimated Errors.
+
+Let's compare the models thus far:
+```{r echo = TRUE}
+
+modell = c("Neg Binom", "CMP", "Aleatory")
+comp = cbind(modell,AIC(model2, model3, model4))
+comp
+```
+
+The AIC values indicate that model3 is the winner, but I always like to check and compare the values of Log(likelihood) of the best models (models 3 and 2)
+
+```{r echo = TRUE}
+anova(model2, model3)
+```
+
+Since Model3 has better AIC value and Log(likelihood) values I will continue working with this model. 
+
+```{r echo = TRUE}
+#This patch is for using Emmeans for Tukey Tests
+#Bolker Patch
+recover.data.glmmTMB <- function(object, ...) {
+  fcall <- getCall(object)
+  recover.data(fcall,delete.response(terms(object)),
+               attr(model.frame(object),"na.action"), ...)
+}
+lsm.basis.glmmTMB <- function (object, trms, xlev, grid, vcov.,
+                               mode = "asymptotic", component="cond", ...) {
+  if (mode != "asymptotic") stop("only asymptotic mode is available")
+  if (component != "cond") stop("only tested for conditional component")
+  if (missing(vcov.)) 
+    V <- as.matrix(vcov(object)[[component]])
+  else V <- as.matrix(.my.vcov(object, vcov.))
+  dfargs = misc = list()
+  if (mode == "asymptotic") {
+    dffun = function(k, dfargs) NA
+  }
+  
+  contrasts = attr(model.matrix(object), "contrasts")
+  m = model.frame(trms, grid, na.action = na.pass, xlev = xlev)
+  X = model.matrix(trms, m, contrasts.arg = contrasts)
+  bhat = fixef(object)[[component]]
+  if (length(bhat) < ncol(X)) {
+    kept = match(names(bhat), dimnames(X)[[2]])
+    bhat = NA * X[1, ]
+    bhat[kept] = fixef(object)[[component]]
+    modmat = model.matrix(trms, model.frame(object), contrasts.arg = contrasts)
+    nbasis = estimability::nonest.basis(modmat)
+  }
+  else nbasis = estimability::all.estble
+  list(X = X, bhat = bhat, nbasis = nbasis, V = V, dffun = dffun, 
+       dfargs = dfargs, misc = misc)
+}
+```
+```{r echo = TRUE}
+#Linear Predictor Comparisons
+
+Comp2 = emmeans(model3, pairwise ~ treatment) ##Tukey
+plot(Comp2, comparison = TRUE)
+```
+
+From this one would conclude that there are no statistical differences between amount of pollen grains per treatment. The error is that the conclusions are being made from the Linear Predictor. In order to assess the matter correctly the linear predictor must be transformed to the Response Variable Scale. 
+
+```{r echo = TRUE}
+#Response Variable Scale
+Comp3 = emmeans(model3, pairwise ~ treatment, type = "response") #Tukeypor default  
+estad = as.data.frame(Comp3$emmeans)
+estad$mean = (estad$rate)
+estad$LI = (estad$lower.CL)
+estad$UI = (estad$upper.CL)
+
+compGraph = ggplot(estad, aes(x = estad$treatment, y = estad$mean)) +
+  geom_errorbar(aes(ymin = estad$LI, ymax = estad$UI), width=.1) +
+  geom_point(colour = "blue", size = 3) + 
+  labs(y = "Collected grains of pollen", x = "Treatment") + 
+  theme_grey(base_size = 16) +
+  annotate("text", x = c(1,2,3.1), y = c(100, 200, 200), label = c("A", "B", "B"))
+compGraph
+```
+
+Finally, as can be seen there is a difference between the amount of pollen grains collected from beehives that were given Protein or Syrup supplements compared to the control. Though there are no statistical differences between these groups. So it would be best to buy the cheapest supplement. 
