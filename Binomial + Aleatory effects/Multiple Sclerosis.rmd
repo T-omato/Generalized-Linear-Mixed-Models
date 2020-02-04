@@ -1,0 +1,327 @@
+---
+title: "Multiple Sclerosis"
+author: "Pablo Rodriguez"
+date: "2/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Multiple Sclerosis & Novel Treatment
+
+Response variable = AFCR in blood, measured as a dycotomic variable, where 1: Low AFCR count and 0: High AFCR count.
+This type of variable responds to a bernoulli ditribution
+
+Explanatory variables = Treatment (fixed); Age(fixed); pretreatment (fixed); time(fixed); patient (aleatory)
+
+The data
+```{r cars}
+id = c(rep(c(1), each = 4), rep(c(2), each = 5), rep(c(3:6), each = 6), rep(c(7:8), each = 7), rep(c(9), each = 6), 
+       rep(c(10), each = 5), rep(c(11), each = 7), rep(c(12), each = 4), rep(c(13), each = 6), rep(c(14), each = 7), 
+       rep(c(15), each = 5), rep(c(16:17), each = 6), rep(c(18), each = 7), rep(c(19), each = 5), rep(c(20), each = 4), 
+       rep(c(21), each = 6), rep(c(22), each = 5), rep(c(23), each = 6), rep(c(24:25), each = 7), rep(c(26), each = 5), 
+       rep(c(27:29), each = 6), rep(c(30), each = 7), rep(c(31:32), each = 4), rep(c(33:34), each = 5), rep(c(35), each = 6), 
+       rep(c(36), each = 7), rep(c(37), each = 6), rep(c(38:39), each = 5), rep(c(40), each = 7), 
+       rep(c(41), each = 5), rep(c(42), each = 6), rep(c(43), each = 7), rep(c(44:45), each = 5),
+       rep(c(46:47), each = 6), rep(c(48), each = 5), rep(c(49), each = 6), rep(c(50), each = 7), rep(c(51:53), each = 6), 
+       rep(c(54), each = 4), rep(c(55), each = 6), rep(c(56), each = 3), rep(c(57), each = 6), rep(c(58), each = 7), 
+       rep(c(59), each = 6), rep(c(60), each = 7), rep(c(61:62), each = 3), rep(c(63), each = 6), rep(c(64), each = 7), 
+       rep(c(65), each = 6), rep(c(66), each = 7), rep(c(67:68), each = 6), rep(c(69), each = 5), rep(c(70:71), each = 6),
+       rep(c(72), each = 4), rep(c(73:74), each = 6), rep(c(75), each = 7), rep(c(76), each = 5), rep(c(77), each = 7), 
+       rep(c(78), each = 5), rep(c(79), each = 6), rep(c(80), each = 5), rep(c(81), each = 4), rep(c(82), each = 6), 
+       rep(c(83:84), each = 4), rep(c(85), each = 5), rep(c(86), each = 3), rep(c(87:89), each = 4), rep(c(90), each = 5),
+       rep(c(91:94), each = 6), rep(c(95), each = 7), rep(c(96), each = 5), rep(c(97), each = 6), rep(c(98), each = 5), 
+       rep(c(99:105), each = 6), rep(c(106:107), each = 5), rep(c(108), each = 6), rep(c(109), each = 5), rep(c(110), each = 6),
+       rep(c(111:112), each = 7), rep(c(113:114), each = 6), rep(c(115:116), each = 5), rep(c(117), each = 7), rep(c(118:119), each = 6),
+       rep(c(120:121), each = 5), rep(c(122:123), each = 6), rep(c(124), each = 7), rep(c(125), each = 5), rep(c(126), each = 2), 
+       rep(c(127), each = 7), rep(c(128), each = 5), rep(c(129:130), each = 6),
+       rep(c(131:132), each = 7), rep(c(133:134), each = 5), rep(c(135), each = 7), rep(c(136), each = 5), rep(c(137), each = 6), 
+       rep(c(138), each = 7), rep(c(139:140), each = 5), rep(c(141), each = 6), rep(c(142), each = 4), rep(c(143:144), each = 6), 
+       rep(c(145), each = 7), rep(c(146), each = 6), rep(c(147:148), each = 5), rep(c(149:150), each = 6) 
+)
+
+time = c(
+  0, 12, 15, 18, 0, 6, 9, 12, 18, 0, 3, 6, 12, 15, 18, 0, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 18, 3, 6, 9, 12, 15, 18, 0, 3, 
+  6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 18, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 6, 15, 18, 0, 6, 
+  9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 3, 6, 9, 12, 15, 0, 3, 6, 9, 12, 15, 3, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 
+  3, 9, 12, 18, 3, 9, 15, 18, 0, 3, 6, 9, 15, 18, 3, 6, 9, 15, 18, 0, 3, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 9, 
+  12, 15, 18, 3, 9, 12, 15, 18, 0, 3, 6, 9, 12, 18, 0, 6, 9, 12, 15, 18, 0, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 3, 6, 9, 
+  12, 0, 6, 9, 15, 0, 6, 9, 12, 15, 0, 3, 6, 15, 18, 0, 3, 6, 9, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 12, 15, 18, 0, 3, 9, 
+  12, 15, 3, 6, 9, 12, 18, 0, 3, 6, 9, 12, 15, 18, 3, 6, 9, 12, 15, 0, 3, 6, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 12, 15, 
+  18, 3, 9, 12, 15, 18, 0, 3, 6, 12, 15, 18, 3, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 0, 3, 6, 9, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 
+  6, 9, 12, 15, 18, 3, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 0, 3, 12, 18, 0, 3, 9, 12, 15, 18, 0, 9, 15, 0, 3, 6, 9, 12, 15, 
+  0, 3, 6, 9, 12, 15, 18, 0, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 3, 9, 15, 0, 6, 15, 0, 3, 6, 9, 15, 18, 0, 3, 6, 9, 12, 
+  15, 18, 0, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 3, 6, 9, 12, 15, 0, 3, 6, 9, 
+  12, 15, 0, 6, 9, 12, 15, 18, 6, 9, 15, 18, 0, 3, 6, 9, 12, 18, 0, 3, 6, 9, 12, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 9, 12, 18, 
+  0, 3, 6, 9, 12, 15, 18, 0, 6, 9, 12, 15, 0, 3, 6, 9, 12, 18, 0, 3, 6, 12, 15, 0, 3, 6, 15, 0, 6, 9, 12, 15, 18, 3, 6, 9, 12, 
+  0, 6, 12, 18, 0, 3, 12, 15, 18, 0, 12, 18, 0, 9, 12, 18, 0, 9, 12, 15, 3, 6, 12, 18, 3, 6, 9, 12, 18, 0, 3, 6, 9, 12, 15, 0, 
+  3, 6, 9, 12, 15, 0, 3, 6, 9, 12, 15, 0, 3, 6, 9, 12, 18, 0, 3, 6, 9, 12, 15, 18, 0, 6, 9, 12, 15, 0, 3, 6, 9, 15, 18, 0, 6, 
+  9, 12, 18, 0, 3, 6, 12, 15, 18, 0, 3, 6, 9, 12, 18, 0, 3, 6, 9, 15, 18, 0, 3, 6, 9, 15, 18, 0, 3, 6, 12, 15, 18, 0, 3, 9, 
+  12, 15, 18, 0, 3, 9, 12, 15, 18, 0, 3, 9, 15, 18, 3, 6, 9, 12, 18, 3, 6, 9, 12, 15, 18, 0, 6, 9, 15, 18, 0, 6, 9, 12, 15, 18, 
+  0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 0, 3, 9, 12, 15, 18, 6, 9, 12, 15, 18, 0, 3, 6, 15, 18, 0, 
+  3, 6, 9, 12, 15, 18, 0, 6, 9, 12, 15, 18, 0, 3, 6, 9, 15, 18, 0, 6, 12, 15, 18, 3, 6, 12, 15, 18, 0, 3, 6, 9, 12, 18, 3, 6, 
+  9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 12, 15, 3, 15, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 12, 15, 0, 3, 6, 9, 12, 18, 
+  0, 3, 6, 9, 12, 15, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 12, 18, 0, 3, 9, 15, 18, 0, 3, 6, 9, 12, 15, 18, 
+  0, 6, 9, 12, 18, 0, 3, 6, 9, 15, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 12, 18, 3, 6, 12, 15, 18, 0, 3, 9, 12, 15, 18, 6, 9, 
+  12, 18, 0, 3, 6, 9, 12, 18, 0, 3, 6, 9, 12, 18, 0, 3, 6, 9, 12, 15, 18, 0, 3, 6, 9, 15, 18, 0, 6, 9, 12, 18, 0, 3, 9, 12, 15, 
+  0, 6, 9, 12, 15, 18, 0, 3, 6, 9, 12, 18
+)       
+
+preTreat = c(
+  replicate(151, 0), replicate(278, 1), replicate(170, 0), replicate(248, 1)
+)
+
+age = c(
+  47, 47, 47, 47, 48, 48, 48, 48, 48, 53, 53, 53, 53, 53, 53, 46, 46, 46, 46, 46, 46, 56, 56, 56, 56, 56, 56, 50, 50, 50, 50, 
+  50, 50, 52, 52, 52, 52, 52, 52, 52, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 53, 53, 53, 53, 53, 35, 35, 35, 35, 35, 
+  35, 35, 61, 61, 61, 61, 50, 50, 50, 50, 50, 50, 57, 57, 57, 57, 57, 57, 57, 43, 43, 43, 43, 43, 44, 44, 44, 44, 44, 44, 45, 45, 
+  45, 45, 45, 45, 52, 52, 52, 52, 52, 52, 52, 48, 48, 48, 48, 48, 47, 47, 47, 47, 65, 65, 65, 65, 65, 65, 40, 40, 40, 40, 40, 54, 
+  54, 54, 54, 54, 54, 46, 46, 46, 46, 46, 46, 46, 49, 49, 49, 49, 49, 49, 49, 50, 50, 50, 50, 50, 61, 61, 61, 61, 61, 61, 47, 47, 
+  47, 47, 47, 47, 59, 59, 59, 59, 59, 59, 58, 58, 58, 58, 58, 58, 58, 52, 52, 52, 52, 37, 37, 37, 37, 59, 59, 59, 59, 59, 50, 50, 
+  50, 50, 50, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 57, 57, 57, 57, 57, 57, 35, 35, 35, 35, 35, 62, 62, 62, 62, 62, 
+  50, 50, 50, 50, 50, 50, 50, 54, 54, 54, 54, 54, 58, 58, 58, 58, 58, 58, 53, 53, 53, 53, 53, 53, 53, 50, 50, 50, 50, 50, 54, 54, 
+  54, 54, 54, 53, 53, 53, 53, 53, 53, 73, 73, 73, 73, 73, 73, 41, 41, 41, 41, 41, 58, 58, 58, 58, 58, 58, 41, 41, 41, 41, 41, 41, 
+  41, 63, 63, 63, 63, 63, 63, 47, 47, 47, 47, 47, 47, 59, 59, 59, 59, 59, 59, 54, 54, 54, 54, 53, 53, 53, 53, 53, 53, 45, 45, 45, 
+  55, 55, 55, 55, 55, 55, 58, 58, 58, 58, 58, 58, 58, 55, 55, 55, 55, 55, 55, 52, 52, 52, 52, 52, 52, 52, 44, 44, 44, 45, 45, 45, 
+  47, 47, 47, 47, 47, 47, 53, 53, 53, 53, 53, 53, 53, 47, 47, 47, 47, 47, 47, 44, 44, 44, 44, 44, 44, 44, 42, 42, 42, 42, 42, 42, 
+  52, 52, 52, 52, 52, 52, 48, 48, 48, 48, 48, 46, 46, 46, 46, 46, 46, 49, 49, 49, 49, 49, 49, 51, 51, 51, 51, 53, 53, 53, 53, 53, 
+  53, 45, 45, 45, 45, 45, 45, 57, 57, 57, 57, 57, 57, 57, 53, 53, 53, 53, 53, 46, 46, 46, 46, 46, 46, 46, 55, 55, 55, 55, 55, 45, 
+  45, 45, 45, 45, 45, 61, 61, 61, 61, 61, 43, 43, 43, 43, 44, 44, 44, 44, 44, 44, 45, 45, 45, 45, 55, 55, 55, 55, 67, 67, 67, 67, 
+  67, 52, 52, 52, 50, 50, 50, 50, 54, 54, 54, 54, 51, 51, 51, 51, 61, 61, 61, 61, 61, 52, 52, 52, 52, 52, 52, 50, 50, 50, 50, 50, 
+  50, 45, 45, 45, 45, 45, 45, 58, 58, 58, 58, 58, 58, 51, 51, 51, 51, 51, 51, 51, 59, 59, 59, 59, 59, 49, 49, 49, 49, 49, 49, 55, 
+  55, 55, 55, 55, 32, 32, 32, 32, 32, 32, 45, 45, 45, 45, 45, 45, 47, 47, 47, 47, 47, 47, 49, 49, 49, 49, 49, 49, 47, 47, 47, 47, 
+  47, 47, 49, 49, 49, 49, 49, 49, 48, 48, 48, 48, 48, 48, 51, 51, 51, 51, 51, 49, 49, 49, 49, 49, 46, 46, 46, 46, 46, 46, 64, 64, 
+  64, 64, 64, 37, 37, 37, 37, 37, 37, 52, 52, 52, 52, 52, 52, 52, 46, 46, 46, 46, 46, 46, 46, 40, 40, 40, 40, 40, 40, 43, 43, 43, 
+  43, 43, 43, 52, 52, 52, 52, 52, 54, 54, 54, 54, 54, 50, 50, 50, 50, 50, 50, 50, 53, 53, 53, 53, 53, 53, 57, 57, 57, 57, 57, 57, 
+  41, 41, 41, 41, 41, 48, 48, 48, 48, 48, 61, 61, 61, 61, 61, 61, 39, 39, 39, 39, 39, 39, 42, 42, 42, 42, 42, 42, 42, 57, 57, 57, 
+  57, 57, 52, 52, 45, 45, 45, 45, 45, 45, 45, 54, 54, 54, 54, 54, 49, 49, 49, 49, 49, 49, 60, 60, 60, 60, 60, 60, 49, 49, 49, 49, 
+  49, 49, 49, 48, 48, 48, 48, 48, 48, 48, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 52, 52, 52, 52, 52, 52, 52, 55, 55, 55, 55, 55, 
+  48, 48, 48, 48, 48, 48, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 52, 52, 52, 52, 52, 52, 52, 52, 52, 
+  52, 56, 56, 56, 56, 56, 56, 38, 38, 38, 38, 38, 38, 57, 57, 57, 57, 57, 57, 57, 43, 43, 43, 43, 43, 43, 46, 46, 46, 46, 46, 51, 
+  51, 51, 51, 51, 55, 55, 55, 55, 55, 55, 41, 41, 41, 41, 41, 41
+)
+
+improvement = c(
+  1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 
+  1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 
+  1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 
+  1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 
+  0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 
+  0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 
+  0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 
+  0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+  1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 
+  0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 
+  1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 
+  1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 
+  0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 
+  0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 
+  1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 
+  0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 
+  0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 
+  0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 
+  0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 
+  1, 1, 1, 1, 1, 1, 1, 1
+  )
+
+cohort = c(
+  replicate(429, "AZ"), replicate(418, "AZ+MP")
+)
+
+esclorosis = data.frame(id, time, preTreat, age, improvement, cohort)
+
+```
+```{r echo = TRUE, warning = FALSE, message = FALSE}
+
+#Libraries used
+
+library(psych)
+library(doBy)
+library(sjPlot)
+library(sjmisc)
+library(ggplot2)
+library(ggpubr)
+library(lme4)
+library(ResourceSelection)
+library(glmmTMB)
+```
+
+A descriptive analysis of the data:
+
+```{r echo = TRUE, warning = FALSE}
+summaryBy(age + preTreat + improvement ~ cohort, data = esclorosis, 
+          FUN = function(x) { c(m = mean(x), s = sd(x)) } )
+
+agePlot = ggplot() +
+  geom_histogram(data = esclorosis, 
+                 aes(x = age), 
+                 binwidth = .9,
+                 colour = "gold2",
+                 fill = "darkmagenta") +
+  labs(x = "Age (years)")
+
+timePlot = ggplot() +
+  geom_histogram(data = esclorosis,
+                 aes(x = time),
+                 binwidth = .9,
+                 colour = "gold2",
+                 fill = "darkmagenta") +
+  labs(x = "Months where patients were checked") +
+  scale_x_discrete(limits = c(0, 3, 6, 9, 12, 15, 18))
+
+binomial_smooth <- function(...) {
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), ...)
+}
+
+descrPlot = ggplot(data = esclorosis,
+                   aes(x = time, y = improvement, colour = cohort, group = cohort), group = cohort) +
+  geom_jitter(height = .01, colour = "gold2") +
+  labs(x = "Time (months)", y = "Improvement / Non Improvement") +
+  binomial_smooth()
+
+pretreatPlot = ggplot(data = esclorosis,
+                      aes(x = age, y = preTreat, colour = cohort)) +
+  binomial_smooth() + 
+  geom_jitter(height =  .01, colour = "gold2") +
+  labs(x = "Age (Years)", y = "Pretreated(1)/ Not Pretreated(0)")
+
+ggarrange(agePlot, timePlot, descrPlot, pretreatPlot,
+          labels = c("A", "B", "C", "D"))
+```
+
+From **graph A** it can be seen that most of the ages registered lie between 40 and 60 years. **graph B** shows the not all month counts (measurements) are equal, which means that the analysis is unbalanced. **graph C** indicates how improvement is seen through the months grouped by the treatments. At a glance AZ+MP seems to show a higher improvement with regards to AZ. **graph D** shows the relationship between patients who are pretreated or not and their age while taking into account the treatments in which these patients were assigned. At a glance it would seem that there are more patients who were pretreated in AZ treatment. This would suggest a lack of randomness in the design. 
+
+$Y_{i}$ = $\frac{improvement}{non.improvement}$
+
+$Y_{i}$ = $Bernoulli(\pi_{i})$
+
+$E(Y_{i})$ = $\pi_{i}$  $Var(Y_{i})$ = $\pi_{i}(1-\pi_{i})$
+
+### Link function
+
+$\eta_{i}$ = $\beta_{0}$ $+$ $\beta_{1}$$AZMP_{i}$ $+$ $\beta_{2}$$TIME$ $+$ $\beta_{3}$$AZMP$$*$$TIME$ $+$ $\beta_{4}$$Age$ $+$ $\beta_{5}$$preTreat$ $+$ $\alpha_{j}$
+
+$\eta_{i}$ $=$ $logit(\pi_{i})$ = $Ln$$\frac{\pi_{i}}{1-\pi_{i}}$ $=$ $Ln$$Odds_{i}$
+
+### Odds Scale
+$Odds_{i}$ = $\frac{\pi_{i}}{1-\pi_{i}}$ = $e$$^{\eta_{i}}$ $=$ $e$$^{\beta_{0} + \beta_{1}AZMP_{i} + \beta_{2}TIME + \beta_{3}AZMP*TIME + \beta_{4}Age + \beta_{5}preTreat + \alpha_{j}}$
+
+### Response Variable Scale
+
+$E(Y_{i})$ = $\pi_{i}$ = $\frac{e^{\eta_{i}}}{1 + e^{\eta_{i}}}$ $=$ $\frac {e^{\beta_{0} + \beta_{1}AZMP_{i} + \beta_{2}TIME + \beta_{3}AZMP*TIME + \beta_{4}Age + \beta_{5}preTreat + \alpha_{j}}}{1 + e^{\beta_{0} + \beta_{1}AZMP_{i} + \beta_{2}TIME + \beta_{3}AZMP*TIME + \beta_{4}Age + \beta_{5}preTreat + \alpha_{j}}}$
+
+The inclusion of "Patiente" as an aleatory effects variable generates a correlation structure between repeated measurments.
+
+There are a total of 6 coefficients and $\sigma^2_{patients}$ to be estimated. 
+
+The models for the analysis:
+
+```{r echo = TRUE, warning = FALSE}
+#Model GLMM Bernoulli
+
+
+model1 = glmer(improvement ~ cohort*time + age + preTreat + (1|id),
+               data = esclorosis, family = binomial)
+h1 = hoslem.test(esclorosis$improvement, fitted(model1, g = 10))
+
+model1.b = glmer(improvement ~ cohort*time + age + preTreat + (1|id),
+                 data = esclorosis, family = binomial, nAGQ = 5)
+h1.b = hoslem.test(esclorosis$improvement, fitted(model1.b, g = 10))
+
+model1.c = glmmTMB(improvement ~ cohort*time + age + preTreat + (1|id),
+                   data = esclorosis, family = binomial)
+h1.c = hoslem.test(esclorosis$improvement, fitted(model1.c, g = 10))
+
+GOFpval = c(round(h1$p.value, 3), round(h1.b$p.value, 3), 
+            round(h1.c$p.value, 3)
+)
+
+GOFdf = c(h1$parameter, h1.b$parameter, h1.c$parameter)
+GOFmodel = c("glmer", "glmer + nAGC = 5", "glmmTMB")
+aicm1 = c(AIC(model1), AIC(model1.b), AIC(model1.c))
+
+GOFm1 = cbind( GOFdf, GOFmodel, GOFpval, aicm1)
+colnames(GOFm1) = c( "Degrees of Freedom", "Model", "p-Value", "AIC")
+
+GOFm1
+```
+
+From the Goodness of Fit analysis (GOF) (This is done because since the response variable is dycotomic in nature analyzing residues doesn't make sense), model "glmer + nAGC = 5" seems to be the better model. this model takes 5 integration points (usually 1) for the Gauss-Hermite approximation.
+
+Analyzing the model:
+
+```{r echo = TRUE, warning = FALSE}
+
+#Predictions
+
+LP = predict(model1.b, type = "link") #LOGIT scale
+odds = exp(LP)
+pred = predict(model1.b, type = "response") #probab scale
+
+esclorosis = as.data.frame(cbind(id, time, preTreat, age, 
+                                 improvement, cohort,
+                                 round(LP,2),
+                                 round(odds,2),
+                                 round(pred,2)))
+
+colnames(esclorosis) = c("id", "time", "preTreat", "age",
+                         "improvement", "cohort", "Linear.Predictor",
+                         "Odds", "Predicted Probability")
+esclorosis$time = as.factor(esclorosis$time)
+esclorosis$age = as.numeric(esclorosis$age)
+levels(esclorosis$time)
+esclorosis$order_time = factor(esclorosis$time, levels = c(0, 3, 6, 9, 12, 15, 18))
+my_line_col = c("#F8766D", "#00BFC4")
+
+LinPred = ggplot(data = esclorosis, aes(x = age, y = LP, group = cohort)) +
+  geom_point(aes(colour = order_time)) +
+  geom_smooth(method = "lm") +
+  geom_line(aes(group = id)) +
+  labs(x = "Age (years)", y = "Linear Predictor Scale", col = "Months")
+
+
+OddPred = ggplot(data = esclorosis, aes(x = age, y = odds, group = cohort)) +
+  geom_point(aes(colour = order_time)) +
+  geom_smooth(colour = "black") +
+  geom_line(aes(group = id)) +
+  labs(x = "Age (Years)", y = "Odds", col = "Months")
+
+RVPred = ggplot(data = esclorosis, aes(x = age, y = pred)) +
+  geom_point(data = esclorosis, aes(x = age, y = pred, shape = order_time)) +
+  binomial_smooth(aes(group = cohort, col = cohort)) +
+  labs(x = "Age (Years)", y = "Response Variable Scale", shape = "Months", col = "Cohort") +
+  scale_shape_manual(values = c(15:21))
+
+percentPred = ggplot(data = esclorosis, aes(x = order_time, y = (pred), group = cohort, colour = cohort)) +
+  geom_point() +
+  binomial_smooth() +
+  labs(x = "Time (Months)", y = "Predicted Values (RV Scale)", colour = "Cohort")
+
+ggarrange(LinPred, OddPred, RVPred, percentPred,
+          labels = c("A", "B", "C", "D"))
+```
+
+**graph A** Black lines used to show that points correspons to same individual's measurements at different month times. The graph is in the Linear Predictor scale and grouped by treatment. **graph B** is in the Odds Scale. **graph C** is in the Response Variable Scale. Months are different shapes. It can be seen that the longer the patient recieved the treatment the higher the odds ratio of showing improvement, though the higher the age this results tend to be lower and patients don't show much improvement. (graph C shows 3 data values plotted on a 2D graph). **graph D** Shows the relation between improvement and non improvement while taking into account the amount of time the patients were on the drugs and which treatment seems to show more improvement (AZ+MP)
+
+Model Coefficients:
+
+```{r echo = TRUE}
+summary(model1.b)
+```
+
+The intercept for both AZ and AZ + MP are statistically non significant, meaning they both have a similar value. All variables taken into account seem to hace a statistically significant effect on the patients improvement or non improvement, which means that their results are based on something more than just chance (i.e the factors taken into account here.)
+
+From the coefficients one can calculate the odds ratios for these variables:
+
+Let's take *age* as an example, since in the graphs it's effect on patients well being seemed clear, let's see what the model has to say:
+
+### $e^{\beta_{3}}$ = $e^{-0.17934}$ = $0.84$
+
+Since Confidence Intercal = 95% for age doesn't contain 1, the probability associated with "improvement" is significant.
+
+Therefore it can be said that for each passing year, the odds of improvemente diminish by 16%, while keeping the rest of the variables constant. 
+
+The random effects (patient id) seems to account for 89% of the model variance. 
