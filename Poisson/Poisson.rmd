@@ -1,0 +1,328 @@
+---
+title: "Poisson Analysis"
+author: "Pablo Rodriguez"
+date: "1/31/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Pine Tree Fertility
+
+The invasive species *Pinus nigra* of a native forest was studied in order to deciphre its reproductive biology.
+
+The amount of pines produced in 1 year by pines trees bigger than 1.5metres. (The way this response variable was collected is how we know it responds to a poisson distribution: Pines collected in a continuum (in this case a time lapse of 1 year))
+
+Other variables such as age (tree rings), height(metres) and basal area (cm$^2$) were also measured.
+
+The Response Variable will be modeled according to a **"Link Log"** which models the Natural Logarithm of the mean. It is used is "counting" data that cannot take on negative values. (Poisson, Negative Binomial, Gamma distributions)
+
+
+```{r pine}
+##Different amount of trees, 13 years or older, were collected in different areas.
+parcel = c(
+  replicate(5, "T2P2"), replicate(5, "T1P5"), replicate(7, "T3P4"),
+  replicate(8, "T5P8"), replicate(9, "T4P5"), replicate(8, "T6P9")
+)
+##Amount of pines counted (discrete variable)
+N_pines = c(
+  919,  1,  2,  745,  280,  133,  54,  115,  701,  6,
+  358,  66,  331,  188,  554,  712,  539,  26,  546,  264,
+  419,  26,  63,  249,  90,  230,  25,  806,  76,  3,  13,
+  27,  663,  68,  21,  405,  551,  156,  593,  65,  100,  259
+)
+
+height = c(
+  10.82,  4.7,  5.1,  10.18,  8.76,  7.7,  7.98,  7.1,  8.49,
+  6.3,  8,  6.6,  9.59,  7.6,  9.3,  7.8,  11.15,  5.4,  7,
+  4.8,  7.6,  4,  4.6,  6,  7,  6.8,  6.8,  7.98,  6.2,  4.3,
+  8.49,  7,  10.49,  10.49,  4.55,  9.59,  7.74,  6.81,  7.5,
+  4.93,  4.93,  4.93
+)
+
+age = c(
+  20,  13,  14,  20,  19,  18,  18,  18,  19,  18,  19,
+  19,  24,  22,  20,  20,  21,  16,  22,  18,  22,  13,
+  16,  17,  15,  17,  18,  20,  15,  13,  19,  18,  22,
+  21,  13,  21,  20,  16,  24,  16,  15,  15
+)
+
+basal_area = c(
+  195564.9281,  10935.88403,  15174.67792,  89196.88402,
+  68813.44548,  48305.12864,  41547.56284,  39760.78202,
+  68349.27517,  20611.9894,  73921.67514,  NA,  127501.5378,
+  NA,  103894.0399,  47143.52476,  92401.30853,  8824.733764,
+  75555.30332,  20106.97838,  87092.01694,  6221.138852,
+  14741.13813,  NA,  NA,  NA,  NA,  89809.49459,  18626.50284,
+  3421.1944,  54739.1104,  27759.11269,  145220.1204,
+  149986.7019,  6647.610055,  126794.6795,  69279.1866,
+  21124.069,  109271.6611,  39996.40147,  23778.7148,
+  12076.28216
+)
+pine = data.frame(parcel, N_pines, height, age, basal_area)
+```
+```{r libraries, echo = TRUE, warning=FALSE, message = FALSE}
+#Libraries used
+library(MASS)
+library(GGally)
+library(car)
+library(ggplot2)
+library(glmmTMB)
+library(ggpubr)
+
+#Functions used
+
+my_custom_smooth = function(data, mapping, ...) {
+  ggplot(data = data, mapping = mapping) +
+    geom_point(color = I("gold2")) + 
+    geom_smooth(method = "lm", color = I("darkmagenta"), ...)
+}
+
+corColors = RColorBrewer::brewer.pal(n = 7, name = "RdYlGn")[2:6]
+
+my_custom_cor_color = function(data, mapping, color = I("black"), sizeRange = c(1, 5), ...) {
+  # get the x and y data to use the other code
+  x <- GGally::eval_data_col(data, mapping$x) 
+  y <- GGally::eval_data_col(data, mapping$y) 
+  
+  ct <- cor.test(x,y)
+  
+  r <- unname(ct$estimate)
+  rt <- format(r, digits=2)[1]
+  tt <- as.character(rt)
+  
+  # plot the cor value
+  p <- ggally_text(
+    label = tt, 
+    mapping = aes(),
+    xP = 0.5, yP = 0.5, 
+    size = 6,
+    color=color,
+    ...
+  ) +
+    
+    theme(
+      panel.background = element_rect(fill="white",
+                                      color = "black", 
+                                      linetype = "dashed"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_blank()
+    ) 
+  
+  corColors <- RColorBrewer::brewer.pal(n = 7, name = "RdYlGn")[2:6]
+  
+  if (r <= -0.6) {
+    corCol <- corColors[1]
+  } else if (r <= -0.4) {
+    corCol <- corColors[2]
+  } else if (r < 0.5) {
+    corCol <- corColors[3]
+  } else if (r < 0.7) {
+    corCol <- corColors[4]
+  } else {
+    corCol <- corColors[5]
+  }
+  p <- p + theme(
+    panel.background = element_rect(fill= corCol)
+  )
+  ##Credit of formula due to Barret Schloerke
+  p
+}
+
+##Pearson Residues vs Predicted Residues for checking Model Assumptions.
+
+dispersionGraph = function(mdl) 
+{
+  y = resid(mdl, type = "pearson")
+  x = fitted(mdl)
+  p = ggplot(pine, aes(x , y)) +
+    geom_abline(slope = 0, intercept = 0, color = "red") +
+    geom_point() +
+    labs(x = "predicted", y = "Pearson residue")
+  
+  return(p)
+}
+
+```
+
+Firstly I will do an exploratory analysis of the data:
+
+```{r ggpairs, echo = TRUE, warning = FALSE}
+pm = ggpairs(
+  pine[,-1],
+  upper = list(continuous = my_custom_cor_color),
+  diag = list(continuous = "density"),
+  lower = list(
+    continuous = my_custom_smooth, 
+    combo = "dot"
+  ), 
+  axisLabels = "none")
+pm
+```
+
+Since there is clearly an association between explanatory variables it would be best to check the **Variance Inflation Factor**(VIF) of these variables
+
+```{r VIF, echo = TRUE}
+
+vif(lm(N_pines ~ age + height + basal_area, data = pine)) # variance inflation factors
+
+```
+
+There doesnt appear to be an apparent variance inflation due to a variable that explains the same information as another variable. This can be seen by the VIF values that are lower than 6.
+
+The first model proposed therefore is:
+
+$\eta$$_i$ = $\beta$$_0$ + $\beta$$_1$ * Age + $\beta$$_2$ * height + $\beta$$_3$ * Age*Height 
+
+Note the symbol eta $\eta$ which represents the Link Function that associates the response variable to the explanatory variables in a linear fashion. 
+
+```{r firstModel, echo = TRUE}
+
+model1 = glm(N_pines ~ age * height, family = "poisson", data = pine)
+##model residues
+e = resid(model1)
+pe = resid(model1, type = "pearson")
+pre = fitted(model1)
+residues = data.frame(e, pe, pre)
+```
+```{r echo = TRUE}
+summary(model1)
+```
+
+All coefficients are statistically significant. but what happens when we look at the dispersion parameter?
+
+```{r dispersion Parameter, echo = TRUE}
+dispersionParametre = sum(resid(model1, type = "pearson")^2/model1$df.residual)
+
+dispersionParametre
+```
+
+The dispersion parametre is greater than 1. This value would indicate a lack of dispersion. Since the value is at least 120X over there is clearly "over dispersion" which means that the variable's variance is greater than what is expected for a poisson distribution. This will have severe consequences when estimating the standard error of the expanatory variable's coefficients. The higher the "over dispersion" the lower the standard error the higher chance of committing type 1 error.
+
+If we look at the residue patterns though...
+
+```{r echo = TRUE}
+dispersionGraph(model1)
+```
+
+And no apparent pattern can be seen. But it would be incorrect to continue analyzing this model with a poisson distribution. 
+
+Alain Zuur proposes that if you have over dispersion greater than 15 or 20 it is best to analyze a model through the Negative Binomial distribution.
+
+``` {r echo = TRUE}
+model2_bn = glm.nb(N_pines ~ age * height, data = pine)
+em2 = resid(model2_bn)
+epm2 = resid(model2_bn, type = "pearson")
+ajust = fitted(model2_bn)
+
+```
+
+
+```{r echo = TRUE}
+
+summary(model2_bn)
+
+#Assumptions
+n = nrow(pine)
+param = length(coef(model2_bn)) + 1 #1 is added because "k" was estimated
+```
+```{r echo = TRUE}
+(dispersion = sum(resid(model2_bn, type = "pearson")^2/(n-param)))
+
+dispersionGraph(model2_bn)
+```
+
+The dispersion graph shows 1 outlier. I don't believe it is necesarry to erase this outlier (I don't believe in deleting outliers in general) since the dispersion parameter is 0.98, which is "considered" 1, or said in another way, this model doesn't present under or over dispersion. 
+
+Here I will show that the data can be modelled with another probability distribution: Comway Maxwell Poisson. The results are practically the same, but since the over distribution for this set of data is greater than 20 I will analyze models modelled with the negative bionomial distribution.
+
+```{r echo = TRUE}
+
+model3_cmp = glmmTMB(N_pines ~ age * height, data = pine, family = compois)
+summary(model3_cmp)
+
+AIC(model2_bn, model3_cmp)
+
+fittedcmp = fitted(model3_cmp) #ajust in the response variable scale
+
+dispersionGraph(model3_cmp)
+```
+
+```{r model Selection, echo = TRUE}
+model4_bn = glm.nb(N_pines ~ age * height, data = pine, link = log)
+model5_bn = glm.nb(N_pines ~ age + height, data = pine, link = log)
+model6_bn = glm.nb(N_pines ~ age, data = pine, link = log)
+model7_bn = glm.nb(N_pines ~ height, data = pine, link = log)
+AIC(model4_bn,model5_bn,model6_bn,model7_bn)
+```
+
+Comparing the Aikaike values for the 4 models I choose to continue with models 4, 5 and 6 for they all present values similar up to the decimals. 
+
+```{r echo = TRUE}
+#Model Comparison
+
+anova(model4_bn,model5_bn,model6_bn)
+anova(model4_bn,model6_bn)
+```
+
+Next I analyze the models conducting an anova analysis. I take into account the log(likelihood), where lower values indicate "better" estimated likelihood.
+
+Since Model6_bn has the best estimated likelihood, and this is an *observational study* and therefore excluding variables is okay, I can continue working with the model that best fits this selection criteria.
+
+### Model 6:
+
+### Linear Predictor Scale
+#### $\eta$$_i$ = $\beta$$_0$ + $\beta$$_1$ * Age 
+
+### Link Function Scale
+
+#### log$E$($\Upsilon$$_i$) = $\beta$$_0$ + $\beta$$_1$ * Age
+
+### Response Variable Scale
+
+#### $E$($\Upsilon$$_i$) = $e$$^\eta$ = $e$$^{\beta_{0}}$$^+$$^{\beta_{1}}$$^{*{Age}}$
+
+The first step is to analyze if the model has more variables than necessary. I conduct a stepAIC, which removes a variable (much like the drop function) and analyzes and compares the AIC between models. Removing the variable "age from the analysis increases the AIC, therefore analysis will continue with model6_bn.
+
+```{r echo = TRUE}
+#Model Modification and selection
+stepAIC(model6_bn, test = "Chi")
+
+ObsVSpred = ggplot(data = pine, aes(x = N_pines, y = model6_bn$fitted.values)) +
+  geom_point(colour = "gold2") +
+  geom_abline(slope = 1, intercept = 0, colour = "darkmagenta", )+
+  labs(y = "Ajusted Values", x = "Observed Values")
+ObsVSpred
+```
+
+This model is able to explain 40% of the deviance (variance). Using just this variable. 
+
+```{r echo = TRUE}
+##Explained Deviance
+((model6_bn$null.deviance-model6_bn$deviance)/model6_bn$null.deviance)*100
+```
+
+```{r Visualization, echo = TRUE, warning = FALSE, message=FALSE}
+
+##Linear Predictor
+new_age = data.frame(age = min(pine$age) : max(pine$age))
+eta = predict(model6_bn, new_age)
+
+linear = ggplot() +
+  geom_point(data = pine, aes(pine$age, log(pine$N_pines)), colour = "gold2") +
+  labs(x = "Age", y = "Log(No. pines)") +
+  geom_smooth(data = new_age, aes(x = new_age$age, y = eta), colour = "darkmagenta")
+
+count = ggplot() +
+  geom_point(data = pine, aes(x = age, y = N_pines), colour = "gold2") + 
+  labs( x = "Age", y = "No. pines") +
+  geom_smooth(data = new_age, aes(x = new_age$age, y = exp(eta)), colour = "darkmagenta")
+
+figure = ggarrange(linear, count,
+                   ncol = 2, nrow = 1,
+                   labels = c("Linear Predictor (Link Function)",
+                   "Response Variable Scale (Exponential)"),
+                   font.label = list(size = 8, color = "red"))
+figure
+```
